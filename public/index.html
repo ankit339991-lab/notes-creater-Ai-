@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TubeNotes AI - YouTube Video to Structured Study Notes</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Marked.js for Markdown parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <!-- KaTeX for LaTeX Math Formulas -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Prism.js for Code Highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 flex flex-col transition-colors duration-200">
+
+  <!-- ========================================================================= -->
+  <!-- APP HEADER                                                                -->
+  <!-- ========================================================================= -->
+  <header id="app-header" class="sticky top-0 z-30 glass-panel border-b border-slate-200 dark:border-slate-800 transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.href='/'">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <div>
+          <span class="text-lg font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 bg-clip-text text-transparent">
+            TubeNotes <span class="text-xs uppercase px-1.5 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold ml-0.5">AI</span>
+          </span>
+          <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium hidden sm:block">YouTube Lecture to Structured Study Notes</p>
+        </div>
+      </div>
+
+      <!-- Right Controls -->
+      <div class="flex items-center gap-3">
+        <!-- AI Mode Indicator -->
+        <div id="ai-mode-pill" class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="ai-status-badge-text">OpenRouter AI Active</span>
+        </div>
+
+        <!-- History Drawer Button -->
+        <button id="history-open-btn" class="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-sm transition-colors">
+          <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <span class="hidden sm:inline">My Notes</span>
+          <span id="history-count-badge" class="px-1.5 py-0.2 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold">0</span>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button id="theme-toggle-btn" class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors shadow-sm" title="Toggle Dark/Light Mode">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN CONTAINER                                                            -->
+  <!-- ========================================================================= -->
+  <main class="flex-1 flex flex-col">
+
+    <!-- ----------------------------------------------------------------------- -->
+    <!-- 1. LANDING & DASHBOARD SECTION                                          -->
+    <!-- ----------------------------------------------------------------------- -->
+    <section id="landing-dashboard-section" class="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-16 flex flex-col justify-center">
+      
+      <!-- Hero Header -->
+      <div class="text-center max-w-3xl mx-auto space-y-4 mb-10">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+          <span>Audio Speech-to-Text • Blackboard OCR • AI Synthesis</span>
+        </div>
+        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.15]">
+          Turn YouTube Lectures into <span class="bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 bg-clip-text text-transparent">Structured Study Notes</span>
+        </h1>
+        <p class="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto leading-relaxed">
+          Paste any lecture URL to automatically extract key concepts, formulas, code snippets, timestamps, and interactive flashcards in seconds.
+        </p>
+      </div>
+
+      <!-- Main Input Card -->
+      <div class="max-w-3xl mx-auto w-full bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-indigo-500/5 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 transition-all">
+        <form id="generate-form" class="space-y-4">
+          
+          <div class="relative flex flex-col sm:flex-row items-stretch gap-2.5">
+            <!-- URL Input -->
+            <div class="relative flex-1">
+              <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                </svg>
+              </div>
+              <input
+                type="text"
+                id="youtube-url-input"
+                name="url"
+                required
+                placeholder="https://www.youtube.com/watch?v=..."
+                class="w-full pl-11 pr-24 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-all"
+              />
+              <button
+                type="button"
+                id="paste-btn"
+                class="absolute right-2 top-2 bottom-2 px-3 rounded-xl bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-xs font-semibold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 transition-colors flex items-center gap-1 shadow-sm"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                <span>Paste</span>
+              </button>
+            </div>
+
+            <!-- Submit Button -->
+            <button
+              type="submit"
+              id="generate-submit-btn"
+              class="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-sm shadow-md shadow-indigo-500/25 transition-all transform active:scale-95 flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+              <span>Generate Notes</span>
+            </button>
+          </div>
+
+          <!-- Advanced Options: Language & Depth (Matches Video Language & Long Videos) -->
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1 text-xs">
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <label for="language-select" class="text-slate-600 dark:text-slate-400 font-semibold whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg>
+                <span>Language:</span>
+              </label>
+              <select id="language-select" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer">
+                <option value="auto" selected>🌐 Auto-Detect (Same as Video)</option>
+                <option value="hinglish">🇮🇳 Hinglish (Hindi + English)</option>
+                <option value="hindi">🇮🇳 Hindi (हिन्दी)</option>
+                <option value="english">🇬🇧 English</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <label for="detail-select" class="text-slate-600 dark:text-slate-400 font-semibold whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                <span>Notes Depth:</span>
+              </label>
+              <select id="detail-select" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer">
+                <option value="comprehensive" selected>📚 Full Lecture Notes (Formulas + Code + Board Notes)</option>
+                <option value="deep_long">📖 Long Video Master Edition (1-3+ Hours Complete)</option>
+                <option value="quick">⚡ Quick Exam Review & Flashcards</option>
+              </select>
+            </div>
+          </div>
+
+        </form>
+
+        <!-- Sample Videos Quick-Chips -->
+        <div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2.5 flex items-center gap-1.5">
+            <span>⚡ Try a sample lecture:</span>
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="sample-url-btn px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-300 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5" data-url="https://www.youtube.com/watch?v=dQw4w9WgXcQ">
+              <span>💻 MIT 6.006: Algorithms & Big-O</span>
+            </button>
+            <button type="button" class="sample-url-btn px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-300 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5" data-url="https://www.youtube.com/watch?v=aircAruvnKk">
+              <span>🤖 Stanford CS229: Deep Learning</span>
+            </button>
+            <button type="button" class="sample-url-btn px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-300 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5" data-url="https://www.youtube.com/watch?v=rB83DpBJQsE">
+              <span>📐 Maxwell's Equations & Calculus</span>
+            </button>
+            <button type="button" class="sample-url-btn px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-300 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5" data-url="https://www.youtube.com/watch?v=ukLnPbIffxE">
+              <span>🧠 Active Recall & Feynman Method</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Feature Highlights Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto w-full mt-14">
+        
+        <div class="p-5 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 shadow-sm flex flex-col items-start">
+          <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold mb-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"></path></svg>
+          </div>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">Timestamped Transcription</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Converts lecture audio into synchronized transcripts. Click any timestamp to jump the video directly to that section.
+          </p>
+        </div>
+
+        <div class="p-5 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 shadow-sm flex flex-col items-start">
+          <div class="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold mb-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+          </div>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">Board OCR & LaTeX Math</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Extracts blackboard equations, diagrams, and code snippets rendered cleanly with KaTeX and syntax highlighting.
+          </p>
+        </div>
+
+        <div class="p-5 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 shadow-sm flex flex-col items-start">
+          <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold mb-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+          </div>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">Active Recall Flashcards</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Interactive 3D flip flashcard deck built right into the notes for self-quizzing and long-term exam retention.
+          </p>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ----------------------------------------------------------------------- -->
+    <!-- 2. NOTES VIEWER SECTION (HIDDEN INITIALLY)                              -->
+    <!-- ----------------------------------------------------------------------- -->
+    <section id="notes-viewer-section" class="hidden flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+      
+      <!-- Top Control Bar -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200 dark:border-slate-800 mb-6">
+        
+        <div class="flex items-center gap-3">
+          <button id="back-to-dashboard-btn" class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-sm transition-colors" title="Back to Generator Dashboard">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+          </button>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">Generated</span>
+              <span id="viewer-duration" class="text-xs text-slate-400 font-mono">24m 30s</span>
+            </div>
+            <h2 id="viewer-video-title" class="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white line-clamp-1 mt-0.5">
+              Study Notes
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+              <span id="viewer-channel-name">Channel Name</span> •
+              <a id="viewer-yt-link" href="#" target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5">
+                <span>Open in YouTube</span>
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+              </a>
+            </p>
+          </div>
+        </div>
+
+        <!-- Export Buttons Group -->
+        <div class="export-btn-group flex items-center flex-wrap gap-2">
+          <button id="copy-notes-btn" class="px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors shadow-sm flex items-center gap-1.5" title="Copy Markdown to Clipboard">
+            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            <span>Copy</span>
+          </button>
+
+          <button id="export-markdown-btn" class="px-3 py-2 rounded-xl text-xs font-semibold border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/70 dark:bg-indigo-950/40 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 transition-colors shadow-sm flex items-center gap-1.5" title="Download Markdown .md File">
+            <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            <span>Download .MD</span>
+          </button>
+
+          <button id="export-text-btn" class="px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors shadow-sm flex items-center gap-1.5" title="Download Plain Text .txt File">
+            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            <span>Download .TXT</span>
+          </button>
+
+          <button id="export-pdf-btn" class="px-3 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-sm flex items-center gap-1.5" title="Print or Save as PDF">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            <span>PDF / Print</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Dual Panel Layout: Media & Quick Reference on Left, Workbench on Right -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- LEFT PANEL: Video Player, Summary & Concept Terms (5 cols) -->
+        <div class="lg:col-span-5 space-y-6 lg:sticky lg:top-24">
+          
+          <!-- YouTube Embedded Video Player with Seek Capability -->
+          <div id="video-player-container" class="rounded-2xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-800 bg-black aspect-video relative">
+            <iframe
+              id="youtube-iframe"
+              class="w-full h-full"
+              src=""
+              title="YouTube video player"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowfullscreen
+            ></iframe>
+          </div>
+
+          <!-- Video Seek Helper Hint -->
+          <div class="flex items-center gap-2 p-2.5 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 text-[11px] text-indigo-700 dark:text-indigo-300">
+            <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+            <span>Tip: Click on any timestamp chip (e.g. <strong>▶ 04:12</strong>) in the notes to jump the video directly to that second!</span>
+          </div>
+
+          <!-- Executive Summary Card -->
+          <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <span>Executive Summary</span>
+            </h3>
+            <p id="viewer-executive-summary" class="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-normal">
+              Loading summary...
+            </p>
+          </div>
+
+          <!-- Key Concepts Glossary -->
+          <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+              <span>Key Concepts & Glossary</span>
+            </h3>
+            <div id="viewer-key-concepts-container" class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT PANEL: Main Workbench Tabs (7 cols) -->
+        <div class="lg:col-span-7 space-y-4">
+          
+          <!-- Tab Navigation Bar -->
+          <div id="tab-buttons" class="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-200/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-x-auto">
+            <button type="button" class="viewer-tab-btn" data-tab="tab-notes">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              <span>Structured Notes</span>
+            </button>
+            <button type="button" class="viewer-tab-btn" data-tab="tab-flashcards">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+              <span>Flashcards Quiz</span>
+            </button>
+            <button type="button" class="viewer-tab-btn" data-tab="tab-pipeline">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+              <span>AI Inspector</span>
+            </button>
+          </div>
+
+          <!-- TAB 1: Main Markdown Notes -->
+          <div id="tab-notes" class="tab-pane p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div id="viewer-markdown-content" class="prose-notes text-slate-800 dark:text-slate-200">
+              <!-- Rendered via marked.js, Prism, KaTeX -->
+            </div>
+          </div>
+
+          <!-- TAB 2: Flashcards Active Recall Mode -->
+          <div id="tab-flashcards" class="tab-pane hidden p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div class="text-center mb-6">
+              <h3 class="text-base font-bold text-slate-900 dark:text-slate-100">Active Recall Testing Deck</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Test your knowledge before looking at the answer. Click or press Space to flip.
+              </p>
+            </div>
+            <div id="flashcards-container">
+              <!-- Rendered via flashcards.js -->
+            </div>
+          </div>
+
+          <!-- TAB 3: AI Pipeline Inspector -->
+          <div id="tab-pipeline" class="tab-pane hidden p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div class="mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 class="text-base font-bold text-slate-900 dark:text-slate-100">AI Pipeline Inspector (Raw Traces)</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Inspect raw speech-to-text audio chunks and vision keyframe OCR extractions before LLM synthesis.
+              </p>
+            </div>
+            <div id="viewer-pipeline-container">
+              <!-- Rendered via notesRenderer.js -->
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- STEP-BY-STEP GENERATION PROGRESS MODAL                                    -->
+  <!-- ========================================================================= -->
+  <div id="progress-modal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md items-center justify-center p-4">
+    <div class="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- Top Glow Accent -->
+      <div class="absolute -top-24 -left-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="relative z-10 space-y-6">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center animate-spin">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-slate-100">Synthesizing Study Notes</h3>
+              <p id="progress-status-message" class="text-xs text-slate-500 dark:text-slate-400 truncate max-w-xs">Fetching video info...</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span id="progress-percent-text" class="text-lg font-extrabold text-indigo-600 dark:text-indigo-400">15%</span>
+            <div id="progress-elapsed-timer" class="text-[10px] text-slate-400 font-mono">00:00</div>
+          </div>
+        </div>
+
+        <!-- Animated Progress Bar -->
+        <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-3 overflow-hidden p-0.5 border border-slate-200/50 dark:border-slate-700/50">
+          <div id="progress-bar-fill" class="bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 h-full rounded-full transition-all duration-300 w-1/12 shadow-sm"></div>
+        </div>
+
+        <!-- Step-by-Step Indicators (1 to 4) -->
+        <div class="space-y-2.5">
+          
+          <div id="step-indicator-1" class="flex items-center gap-3 p-3 rounded-xl border border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-100">
+            <div id="step-badge-1" class="w-6 h-6 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm">
+              <span class="text-xs font-bold text-indigo-600">1</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h4 class="text-xs font-bold truncate">Step 1: Video Parsing & Metadata</h4>
+              <p class="text-[10px] opacity-75 truncate">Validating video stream, duration & audio channels</p>
+            </div>
+          </div>
+
+          <div id="step-indicator-2" class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-slate-400">
+            <div id="step-badge-2" class="w-6 h-6 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm">
+              <span class="text-xs font-bold">2</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h4 class="text-xs font-bold truncate">Step 2: Speech-to-Text Transcription</h4>
+              <p class="text-[10px] opacity-75 truncate">Transcribing audio track with precise timestamps (STT)</p>
+            </div>
+          </div>
+
+          <div id="step-indicator-3" class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-slate-400">
+            <div id="step-badge-3" class="w-6 h-6 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm">
+              <span class="text-xs font-bold">3</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h4 class="text-xs font-bold truncate">Step 3: Board OCR & Frame Analysis</h4>
+              <p class="text-[10px] opacity-75 truncate">Sampling keyframes to extract formulas, diagrams & slides</p>
+            </div>
+          </div>
+
+          <div id="step-indicator-4" class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-slate-400">
+            <div id="step-badge-4" class="w-6 h-6 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm">
+              <span class="text-xs font-bold">4</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h4 class="text-xs font-bold truncate">Step 4: LLM Structured Synthesis</h4>
+              <p class="text-[10px] opacity-75 truncate">Generating study notes, definitions, formulas & flashcards</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Rotating Motivational Study Tip -->
+        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 text-center font-medium">
+          <span id="progress-tip-text">💡 Active recall creates stronger synaptic connections than passive reading.</span>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- NOTES HISTORY SLIDE-OUT DRAWER                                            -->
+  <!-- ========================================================================= -->
+  <div id="history-backdrop" class="hidden fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm transition-opacity"></div>
+  <aside id="history-drawer" class="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col">
+    
+    <!-- Drawer Header -->
+    <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Saved Study Notes</h3>
+      </div>
+      <button id="history-close-btn" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+    </div>
+
+    <!-- Search History -->
+    <div class="p-3 border-b border-slate-100 dark:border-slate-800">
+      <div class="relative">
+        <input
+          type="text"
+          id="history-search-input"
+          placeholder="Search saved notes..."
+          class="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        />
+        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+      </div>
+    </div>
+
+    <!-- History List Items -->
+    <div id="history-items-container" class="flex-1 overflow-y-auto p-3 space-y-2.5">
+      <!-- Dynamically filled -->
+    </div>
+
+  </aside>
+
+  <!-- ========================================================================= -->
+  <!-- TOAST NOTIFICATION CONTAINER                                              -->
+  <!-- ========================================================================= -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <!-- Main Application Script (ES Module) -->
+  <script type="module" src="/js/app.js"></script>
+
+</body>
+</html>
+
